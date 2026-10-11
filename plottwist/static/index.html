@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plot Twist</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+<style>
+  :root {
+    --bg: #f6f3ea; --panel: #fffdf7; --ink: #23291f; --muted: #6b705f; --line: #e2dccb;
+    --leaf: #3f7d3a; --leaf-soft: #e3efd9; --frost: #8fb4d9; --frost-deep: #4f7fb0; --frost-soft: #e4eef8;
+    --warn: #a35b12; --warn-soft: #fbecd7; --today: #c2410c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161a14; --panel: #1f251c; --ink: #e6e9df; --muted: #9da48f; --line: #343c2f;
+      --leaf: #8cc97f; --leaf-soft: #263522; --frost: #5d84ad; --frost-deep: #8fb4e0; --frost-soft: #1e2a36;
+      --warn: #f0b46b; --warn-soft: #3a2b18; --today: #fb923c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2.2rem; margin: 0; letter-spacing: -0.02em; }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  .tag { color: var(--muted); margin: 4px 0 24px; max-width: 60ch; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .search { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { flex: 1 1 220px; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
+  button { padding: 11px 16px; border-radius: 10px; border: 0; background: var(--leaf); color: var(--panel); font: inherit; font-weight: 600; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--leaf); border: 1px solid var(--leaf); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .results button { display: block; width: 100%; text-align: left; margin-top: 6px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); font-weight: 400; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 14px; }
+  .stat { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 1.25rem; }
+  .stat span { font-size: .8rem; color: var(--muted); }
+  .alert { background: var(--frost-soft); border-left: 4px solid var(--frost-deep); padding: 10px 12px; border-radius: 8px; margin-top: 12px; }
+  .strip { position: relative; height: 34px; border-radius: 8px; background: var(--leaf-soft); overflow: hidden; margin-top: 10px; }
+  .strip .z { position: absolute; top: 0; bottom: 0; }
+  .strip .today { position: absolute; top: -2px; bottom: -2px; width: 3px; background: var(--today); }
+  .months { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: 4px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+  .bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; align-items: end; height: 90px; margin-top: 10px; }
+  .bars div { background: var(--leaf); border-radius: 4px 4px 0 0; position: relative; }
+  .bars div.cur { background: var(--today); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--bg); }
+  .card .e { font-size: 1.6rem; line-height: 1; }
+  .card .a { font-weight: 600; margin-top: 6px; }
+  .card .w { font-size: .85rem; color: var(--muted); }
+  .card .warn { margin-top: 8px; font-size: .82rem; background: var(--warn-soft); color: var(--warn); padding: 6px 8px; border-radius: 8px; }
+  .soon li { margin: 4px 0; }
+  .brief { white-space: normal; }
+  .brief ul { padding-left: 1.2em; }
+  .brief li { margin: 4px 0; }
+  .brief p { margin: 8px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+  .pill { font-size: .78rem; padding: 3px 9px; border-radius: 99px; background: var(--leaf-soft); color: var(--leaf); }
+  .pill.off { background: var(--warn-soft); color: var(--warn); }
+  .hidden { display: none; }
+  footer { margin-top: 28px; font-size: .82rem; color: var(--muted); }
+  .cursor::after { content: "▍"; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media print {
+    body { background: #fff; color: #000; }
+    .noprint, .search, footer, .tag { display: none !important; }
+    .panel { border: 1px solid #999; break-inside: avoid; }
+    .print-check li::before { content: "☐ "; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="row">
+    <h1>🌱 Plot Twist</h1>
+    <span id="model" class="pill">checking model…</span>
+  </div>
+  <p class="tag">What to plant <em>this week</em>, worked out from 30 years of your local weather, with a short garden card written by an open-weight model running on this laptop. Print the card and go outside.</p>
+
+  <section class="panel noprint">
+    <form class="search" id="form">
+      <input id="q" type="text" placeholder="Your town or city, e.g. Pune, Minneapolis, Leeds" autocomplete="off">
+      <button type="submit">Find</button>
+      <button type="button" class="ghost" id="geo">Use my location</button>
+    </form>
+    <div id="results" class="results"></div>
+    <p id="status" class="muted"></p>
+  </section>
+
+  <div id="out" class="hidden">
+    <section class="panel">
+      <div class="row"><h2 id="place"></h2><span class="muted" id="today"></span></div>
+      <div id="frost"></div>
+      <div class="stats" id="stats"></div>
+      <div id="alerts"></div>
+    </section>
+
+    <section class="panel">
+      <div class="row">
+        <h2>Your garden card</h2>
+        <div class="noprint" style="display:flex;gap:8px">
+          <button id="write">Write my card</button>
+          <button class="ghost" id="print">Print / save PDF</button>
+        </div>
+      </div>
+      <div id="brief" class="brief print-check muted">The local model turns the numbers below into a short checklist you can take outside.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Plant now</h2>
+      <div class="cards" id="now"></div>
+    </section>
+
+    <section class="panel" id="soonWrap">
+      <h2>Coming up in the next 3 weeks</h2>
+      <ul class="soon" id="soon"></ul>
+    </section>
+  </div>
+
+  <footer>
+    Frost dates are computed from 1996–2025 daily minimum temperatures (Open-Meteo archive), with a frost counted as ≤ 0 °C at 2 m.
+    The first lookup for a place needs the internet; after that it's cached. The model runs locally through Ollama, so nothing about your garden leaves this machine.
+  </footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+let facts = null;
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function md(text) {
+  // Tiny markdown: **bold**, "- " lists, paragraphs. Enough for the card.
+  const lines = esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").split("\n");
+  let html = "", inList = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const item = line.match(/^[-*]\s+(.*)/);
+    if (item) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${item[1]}</li>`; continue; }
+    if (inList) { html += "</ul>"; inList = false; }
+    if (line) html += `<p>${line}</p>`;
+  }
+  return html + (inList ? "</ul>" : "");
+}
+
+async function checkModel() {
+  try {
+    const h = await (await fetch("/api/health")).json();
+    const el = $("model");
+    el.textContent = h.model_ready ? `${h.model} · local` : h.ollama ? `run: ollama pull ${h.model}` : "Ollama not running";
+    el.classList.toggle("off", !h.model_ready);
+  } catch { /* server gone */ }
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = $("q").value.trim();
+  if (!q) return;
+  $("status").textContent = "Searching…";
+  try {
+    const places = await (await fetch(`/api/geocode?q=${encodeURIComponent(q)}`)).json();
+    $("status").textContent = places.length ? "" : "No match. Try a bigger nearby town.";
+    $("results").innerHTML = "";
+    for (const p of places) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.innerHTML = `<b>${esc(p.name)}</b> <span class="muted">${esc(p.region)}</span>`;
+      b.onclick = () => loadPlan(p.lat, p.lon, p.name);
+      $("results").append(b);
+    }
+  } catch { $("status").textContent = "Search needs the internet. Already-visited places still work offline."; }
+});
+
+$("geo").onclick = () => navigator.geolocation.getCurrentPosition(
+  (pos) => loadPlan(pos.coords.latitude, pos.coords.longitude, "My garden"),
+  () => { $("status").textContent = "Location blocked. Type a town instead."; }
+);
+
+async function loadPlan(lat, lon, name) {
+  $("results").innerHTML = "";
+  $("status").textContent = "Reading 30 years of weather for this spot (first time takes ~10 s)…";
+  const res = await fetch(`/api/plan?lat=${lat}&lon=${lon}&name=${encodeURIComponent(name)}`);
+  const data = await res.json();
+  if (!res.ok) { $("status").textContent = data.error; return; }
+  $("status").textContent = "";
+  try { localStorage.setItem("plottwist:last", JSON.stringify({ lat, lon, name })); } catch {}
+  facts = data;
+  render();
+}
+
+function frostStrip(raw, south) {
+  // Season axis: Jan..Dec in the north, Jul..Jun in the south. Frost season wraps the year end.
+  const pct = (d) => (Math.min(Math.max(d, 1), 366) / 366) * 100;
+  const zone = (from, to, color) =>
+    `<div class="z" style="left:0;width:${pct(from)}%;background:${color}"></div>` +
+    `<div class="z" style="left:${pct(to)}%;right:0;background:${color}"></div>`;
+  const months = south ? [...MONTHS.slice(6), ...MONTHS.slice(0, 6)] : MONTHS;
+  return `<div class="strip">
+      ${zone(raw.last_frost_90, raw.first_frost_10, "var(--frost)")}
+      ${zone(raw.last_frost_50, raw.first_frost_50, "var(--frost-deep)")}
+      <div class="today" style="left:${pct(raw.today)}%"></div>
+    </div>
+    <div class="months">${months.map((m) => `<span>${m}</span>`).join("")}</div>
+    <div class="legend">
+      <span><i style="background:var(--frost-deep)"></i>frost in most years</span>
+      <span><i style="background:var(--frost)"></i>frost in some years</span>
+      <span><i style="background:var(--leaf-soft)"></i>frost-free</span>
+      <span><i style="background:var(--today)"></i>today</span>
+    </div>`;
+}
+
+function tempBars(monthly, month) {
+  const means = monthly.map((m) => (m.tmin + m.tmax) / 2);
+  const max = Math.max(...means, 1);
+  return `<p class="muted" style="margin:0">No reliable frost here (${Math.round(facts.years_of_data)} years checked), so planting follows temperature and rain instead. Monthly average °C:</p>
+    <div class="bars">${means.map((v, i) => `<div class="${i === month ? "cur" : ""}" title="${MONTHS[i]}: ${v.toFixed(1)}°C, ${monthly[i].rain_mm} mm rain" style="height:${(v / max) * 100}%"></div>`).join("")}</div>
+    <div class="months">${MONTHS.map((m) => `<span>${m[0]}</span>`).join("")}</div>`;
+}
+
+function render() {
+  const f = facts;
+  const today = new Date(f.today + "T12:00");
+  $("out").classList.remove("hidden");
+  $("place").textContent = f.place;
+  $("today").textContent = `Week of ${today.toLocaleDateString(undefined, { month: "long", day: "numeric" })}`;
+
+  const stat = (v, label) => `<div class="stat"><b>${v}</b><span>${label}</span></div>`;
+  let stats = "";
+  if (f.frost_free) {
+    $("frost").innerHTML = tempBars(f.monthly_normals, today.getMonth());
+    const m = f.this_month_normal;
+    stats += stat(`${m.tmin}–${m.tmax}°C`, `normal for ${MONTHS[m.month - 1]}`) + stat(`${m.rain_mm} mm`, "normal monthly rain");
+  } else {
+    const d = f.frost_dates;
+    $("frost").innerHTML = frostStrip(f.frost_dates_raw, f.hemisphere === "southern");
+    stats += stat(d.last_frost_50, `last spring frost (half of years)`) + stat(d.last_frost_90, "safe for tender plants (9 in 10 years)")
+      + stat(d.first_frost_50, "first fall frost (half of years)") + stat(d.first_frost_10, "early first frost (1 in 10 years)");
+  }
+  if (f.soil_temp_c != null) stats += stat(`${f.soil_temp_c}°C`, "soil at 6 cm today");
+  if (f.rain_next_7_days_mm != null) stats += stat(`${f.rain_next_7_days_mm} mm`, "rain in the next 7 days");
+  $("stats").innerHTML = stats;
+
+  let alerts = "";
+  if (f.frost_alert) alerts += `<div class="alert">❄️ Frost possible on ${f.frost_alert.map((d) => new Date(d + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })).join(", ")}. Cover or bring in tender plants.</div>`;
+  if (f.heavy_rain_month) alerts += `<div class="alert">🌧️ This is normally a very wet month. Sow in trays or raised beds so seed doesn't wash out.</div>`;
+  if (f.offline) alerts += `<div class="alert">📴 Offline: showing climate-based advice without this week's forecast.</div>`;
+  $("alerts").innerHTML = alerts;
+
+  $("now").innerHTML = f.plant_now.length ? f.plant_now.map((c) => `
+    <div class="card">
+      <div class="e">${c.emoji}</div>
+      <div class="a">${esc(c.action)}: ${esc(c.crop)}</div>
+      ${c.window ? `<div class="w">${esc(c.window)} · ${c.closes_in_days <= 7 ? "<b>closes this week</b>" : `${c.closes_in_days} days left`}</div>` : ""}
+      ${c.why ? `<div class="w">${esc(c.why)}</div>` : ""}
+      ${c.warning ? `<div class="warn">${esc(c.warning)}</div>` : ""}
+    </div>`).join("") : `<p class="muted">Nothing to sow this week. A good week to mulch, tidy beds and plan.</p>`;
+
+  $("soonWrap").classList.toggle("hidden", !f.coming_up.length);
+  $("soon").innerHTML = f.coming_up.map((c) => `<li>${c.emoji} <b>${esc(c.crop)}</b>: ${esc(c.action.toLowerCase())} in ${c.opens_in_days} days</li>`).join("");
+  $("brief").innerHTML = "The local model turns these numbers into a short checklist you can take outside.";
+  $("brief").classList.add("muted");
+}
+
+$("write").onclick = async () => {
+  if (!facts) return;
+  const btn = $("write"), out = $("brief");
+  btn.disabled = true; btn.textContent = "Writing…";
+  out.classList.remove("muted"); out.classList.add("cursor"); out.innerHTML = "";
+  let text = "";
+  try {
+    const res = await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(facts) });
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += dec.decode(value, { stream: true });
+      out.innerHTML = md(text);
+    }
+  } catch (e) { out.innerHTML += `<p class="muted">Lost the connection to the model: ${esc(e.message)}</p>`; }
+  out.classList.remove("cursor");
+  btn.disabled = false; btn.textContent = "Rewrite";
+};
+
+$("print").onclick = () => window.print();
+
+checkModel();
+setInterval(checkModel, 15000);
+const params = new URLSearchParams(location.search);
+if (params.has("lat")) {
+  loadPlan(params.get("lat"), params.get("lon"), params.get("name") || "My garden");
+} else {
+  try {
+    const last = JSON.parse(localStorage.getItem("plottwist:last"));
+    if (last) loadPlan(last.lat, last.lon, last.name);
+  } catch {}
+}
+</script>
+</body>
+</html>
